@@ -18,9 +18,9 @@ class Literal:
 
     def evaluate(self):
         if self.negated:
-            return not self.var.getValue()
+            return not self.var.get_value()
         else:
-            return self.var.getValue()
+            return self.var.get_value()
 
     #overrides == operator
     def __eq__(self,other):
@@ -47,9 +47,9 @@ class Clause:
         return True
 
 
-#Choose a variable randomly from vars
-def pick_variable(vars):
-    return random.choice(vars)
+#Choose randomly from list, list can be a list of vars or a list of clauses
+def pick_randomly(list):
+    return random.choice(list)
 
 #randomly returns boolean
 def random_boolean():
@@ -58,7 +58,7 @@ def random_boolean():
 #Create a random clause from variables in vars
 def create_random_clause(vars):
     literals = []
-    for i in range(3): literals.append(Literal(pick_variable(vars), random_boolean()))
+    for i in range(3): literals.append(Literal(pick_randomly(vars), random_boolean()))
     return Clause(literals)
 
 def initializeVars(N):
@@ -74,23 +74,44 @@ def create_3sat(C,N):
         if clause not in clauses: clauses.append(clause)
     return clauses
 
+def evaluate_3sat(clauses):
+    for clause in clauses:
+        if not clause.evaluate(): # if any clause is false
+            return False
+    return True
+
+# def walk_sat(clauses):
+
+
+
 def testClauseEquality():
     a = Variable(True)
     b = Variable(False)
 
     clause = Clause([Literal(a, True), Literal(a, False)])
-    clause2 = Clause([Literal(a, False), Literal(a, True)])
+    clause2 = Clause([Literal(a, True), Literal(a, True)])
 
     clauses = [clause2]
-    print(clause == clause2)
-    print(clause in clauses)
+    # print(clause == clause2)
+    # print(clause in clauses)
+    print(clause.evaluate())
+    print(clause2.evaluate())
     # print(l1 == l2)
     # print(l1, l2)
     # print(clause.literals, clause2.literals)
 
+def testVars():
+    a = Variable(True)
+    b = Variable(False)
+
+    vars = [a, b]
+    rand = pick_randomly(vars)
+    print (rand,  vars)
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    testClauseEquality()
-
+    # testClauseEquality()
+    testVars()
 
 
