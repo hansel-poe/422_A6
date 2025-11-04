@@ -1,5 +1,6 @@
-#returns a number from 1 to N (inclusive), denoting which variable to pick
 import random
+import multiprocessing
+import time
 
 class Variable:
     def __init__(self, val):
@@ -97,21 +98,23 @@ def count_satisfied(clauses):
             count += 1
     return count
 
-#This function assumes vars are already assigned randomly.
 # This function will run indefinitely until a solution is found,
-# and returns true if a solution is found
 # outside process should time out appropriately when calling this function
-def walk_sat(clauses, vars):
+# if a solution is found, num_flips is put in q
+def walk_sat(clauses, vars, q):
     shuffle_vars(vars)
+    num_flips = 0
     while(1):
         if evaluate_3sat(clauses):
-            return True #normally we want to return vars, but here we only need to know if it's solved or not
+            q.put(num_flips) #normally we want to return vars, but here we want
+                             # to know number of flips, we put that in q
         else:
             clause = pick_randomly(clauses)
             if random_boolean(): #If true, random flip
                 literal = pick_randomly(clause.get_literals())
                 var = literal.get_var()
                 var.set_value(not var.get_value())
+                num_flips += 1
             else: #else greedy
                 literals = clause.get_literals()
                 count_list = []
@@ -125,6 +128,26 @@ def walk_sat(clauses, vars):
                 literal_to_flip = literals[index_max]
                 var_to_flip = literal_to_flip.get_var()
                 var_to_flip.set_value(not var_to_flip.get_value()) #flip greedy variable
+                num_flips += 1
+
+# Wrapper to allow walk_sat to timeout after 10 seconds
+# returns num_flips if succesful, -1 if fail
+def walk_sat_wrapper (clauses, vars):
+    q = multiprocessing.Queue()
+    p = multiprocessing.Process(target=walk_sat, args=(clauses, vars, q))
+    p.start()
+
+    # Wait for 10 seconds or until process finishes
+    p.join(10)
+
+    # If thread is still active
+    if p.is_alive():
+        # Terminate - may not work if process is stuck for good
+        p.terminate()
+        p.join()
+        return -1
+    else:
+        return q.get()
 
 
 #Testing functions
@@ -152,6 +175,27 @@ def testVars():
     rand = pick_randomly(vars)
     print (rand,  vars)
 
+
+def foo(i, q):
+    time.sleep(2)
+    q.put(i + 20)
+
+def test_queue_thread():
+    q = multiprocessing.Queue()
+    p = multiprocessing.Process(target=foo, args=(4, q))
+    p.start()
+
+    # Wait for 10 seconds or until process finishes
+    p.join(10)
+    if p.is_alive():
+        # Terminate - may not work if process is stuck for good
+        p.terminate()
+        p.join()
+        print('fail to terminate in 10 seconds')
+    else:
+        print(q.get())
+
+
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     N = 20
@@ -163,11 +207,9 @@ if __name__ == '__main__':
         for i in range(50): problems.append(create_3sat(c, vars))
         problems_dict[c/N] = problems
 
-
-
-
-
-
-
-
+    num_success = []
+    median_flips = []
+    # for i in problems_dict:
+    #     problems = problems_dict[i]
+    #     for problem in problems:
 
