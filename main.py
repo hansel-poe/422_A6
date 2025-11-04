@@ -22,6 +22,9 @@ class Literal:
         else:
             return self.var.get_value()
 
+    def get_var(self):
+        return self.var
+
     #overrides == operator
     def __eq__(self,other):
         return self.var == other.var and self.negated == other.negated
@@ -39,6 +42,10 @@ class Clause:
     #overrides [] operator
     def __getitem__(self, item):
         return self.literals[item]
+
+    def get_literals(self):
+        return self.literals
+
     #overrides == operator
     def __eq__ (self, other):
         for literal in self.literals:
@@ -61,6 +68,7 @@ def create_random_clause(vars):
     for i in range(3): literals.append(Literal(pick_randomly(vars), random_boolean()))
     return Clause(literals)
 
+#Randomly create and assign N vars
 def initializeVars(N):
     vars = []
     for n in range(N): vars.append(Variable(random_boolean()))
@@ -80,9 +88,39 @@ def evaluate_3sat(clauses):
             return False
     return True
 
-# def walk_sat(clauses):
+def count_satisfied(clauses):
+    count = 0
+    for clause in clauses:
+        if clause.evaluate():
+            count += 1
+    return count
 
+#This function assumes vars are already assigned randomly.
+# This function will run indefinitely until a solution is found,
+# outside process should timeout appropriately when calling this function
+def walk_sat(clauses, vars):
+    while(1):
+        if evaluate_3sat(clauses):
+            return vars
+        else:
+            clause = pick_randomly(clauses)
+            if random_boolean(): #If true, random flip
+                literal = pick_randomly(clause.get_literals())
+                var = literal.get_var()
+                var.set_value(not var.get_value())
+            else: #else greedy
+                literals = clause.get_literals()
+                count_list = []
+                for literal in literals:
+                    var = literal.get_var()
+                    var.set_value(not var.get_value())
+                    count_list.append(count_satisfied(clauses))
+                    var.set_value(not var.get_value()) #undo flip
 
+                index_max = count_list.index(max(count_list))
+                literal_to_flip = literals[index_max]
+                var_to_flip = literal_to_flip.get_var()
+                var_to_flip.set_value(not var_to_flip.get_value()) #flip greedy variable
 
 def testClauseEquality():
     a = Variable(True)
