@@ -254,7 +254,11 @@ if __name__ == '__main__':
             median_flips.append(0)
         else:
             median_flips.append(median(flips))
+        print(num_success, median_flips) #Sometimes the program is stuck after solving all the problems,
+                                        # I have printed the statement here so that you can see the results
+                                        #and hardcode it as y input for graph() for when that happens
 
+    print("Outside For loop!") #to see if program is stuck or not
     #graph result
     x = list(problems_dict.keys())
     graph(x, num_success, 'Num of Success')
