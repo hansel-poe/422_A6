@@ -1,5 +1,6 @@
 import random
-import multiprocessing
+from threading import Thread
+import functools
 import time
 from statistics import median
 import matplotlib.pyplot as plt
@@ -100,15 +101,41 @@ def count_satisfied(clauses):
             count += 1
     return count
 
+def timeout(timeout):
+    def deco(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            res = [Exception('function [%s] timeout [%s seconds] exceeded!' % (func.__name__, timeout))]
+            def newFunc():
+                try:
+                    res[0] = func(*args, **kwargs)
+                except Exception as e:
+                    res[0] = e
+            t = Thread(target=newFunc)
+            t.daemon = True
+            try:
+                t.start()
+                t.join(timeout)
+            except Exception as je:
+                print ('error starting thread')
+                raise je
+            ret = res[0]
+            if isinstance(ret, BaseException):
+                raise ret
+            return ret
+        return wrapper
+    return deco
+
 # This function will run indefinitely until a solution is found,
 # outside process should time out appropriately when calling this function
-# if a solution is found, num_flips is put in q
-def walk_sat(clauses, vars, q):
+# if a solution is found, num_flips is returned
+@timeout(10)
+def walk_sat(clauses, vars):
     shuffle_vars(vars)
     num_flips = 0
     while(1):
         if evaluate_3sat(clauses):
-            q.put(num_flips) #normally we want to return vars, but here we want
+            return (num_flips) #normally we want to return vars, but here we want
                              # to know number of flips, we put that in q
         else:
             clause = pick_randomly(clauses)
@@ -132,31 +159,16 @@ def walk_sat(clauses, vars, q):
                 var_to_flip.set_value(not var_to_flip.get_value()) #flip greedy variable
                 num_flips += 1
 
-# Wrapper to allow walk_sat to timeout after 10 seconds
-# returns num_flips if successful, -1 if fail
-def walk_sat_wrapper (clauses, vars):
-    q = multiprocessing.Queue()
-    p = multiprocessing.Process(target=walk_sat, args=(clauses, vars, q))
-    p.start()
-
-    # Wait for 10 seconds or until process finishes
-    p.join(10)
-
-    # If thread is still active
-    if p.is_alive():
-        p.terminate()
-        p.join()
-        return -1
-    else:
-        return q.get()
 
 def graph(x, y, ylabel):
     # Note that even in the OO-style, we use `.pyplot.figure` to create the Figure.
     fig, ax = plt.subplots(figsize=(10, 5), layout='constrained')
-    ax.plot(x, y, label=ylabel)  # Plot some data on the Axes.
+    ax.plot(x, y, label=ylabel, marker='o', color='royalblue', mfc='orange')  # Plot some data on the Axes.
     ax.set_xlabel('C/N')  # Add an x-label to the Axes.
     ax.set_ylabel(ylabel)  # Add a y-label to the Axes.
     ax.set_title(ylabel + ' vs C/N')  # Add a title to the Axes.
+    for i in range(len(x)):
+        ax.annotate(f'({x[i]},{y[i]})', xy=(x[i],y[i]),xycoords='data',xytext=(-20,10),textcoords='offset points')
 
     plt.legend()
     plt.show()
@@ -192,20 +204,17 @@ def foo(i, q):
     time.sleep(2)
     q.put(i + 20)
 
-def test_queue_thread():
-    q = multiprocessing.Queue()
-    p = multiprocessing.Process(target=foo, args=(4, q))
-    p.start()
 
-    # Wait for 10 seconds or until process finishes
-    p.join(10)
-    if p.is_alive():
-        # Terminate - may not work if process is stuck for good
-        p.terminate()
-        p.join()
-        print('fail to terminate in 10 seconds')
-    else:
-        print(q.get())
+def test_walk_sat():
+    N = 3
+    vars = initializeVars(N)
+    problem = create_3sat(2, vars)
+    try:
+        num_flip = walk_sat(problem, vars)
+        print(num_flip)
+
+    except:
+        print('fail')
 
 
 # Press the green button in the gutter to run the script.
@@ -228,11 +237,17 @@ if __name__ == '__main__':
         flips = []
         problems = problems_dict[i]
 
+        j = 0
         for problem in problems:
-            num_flip = walk_sat_wrapper(problem, vars)
-            if num_flip != -1:
+            try:
+                num_flip = walk_sat(problem, vars)
+                print(f'i: {i}, j: {j}, num_flips: {num_flip}')
                 success += 1
                 flips.append(num_flip)
+                j += 1
+            except :
+                print(f'i: {i}, j: {j}, Timeout!')
+                j += 1
 
         num_success.append(success)
         if len(flips) == 0:
@@ -249,4 +264,7 @@ if __name__ == '__main__':
     print(len(num_success))
     print(len(median_flips))
 
+    print(x)
+    print(num_success)
+    print(median_flips)
 
