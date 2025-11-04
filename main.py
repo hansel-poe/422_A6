@@ -1,6 +1,8 @@
 import random
 import multiprocessing
 import time
+from statistics import median
+import matplotlib.pyplot as plt
 
 class Variable:
     def __init__(self, val):
@@ -131,7 +133,7 @@ def walk_sat(clauses, vars, q):
                 num_flips += 1
 
 # Wrapper to allow walk_sat to timeout after 10 seconds
-# returns num_flips if succesful, -1 if fail
+# returns num_flips if successful, -1 if fail
 def walk_sat_wrapper (clauses, vars):
     q = multiprocessing.Queue()
     p = multiprocessing.Process(target=walk_sat, args=(clauses, vars, q))
@@ -142,12 +144,22 @@ def walk_sat_wrapper (clauses, vars):
 
     # If thread is still active
     if p.is_alive():
-        # Terminate - may not work if process is stuck for good
         p.terminate()
         p.join()
         return -1
     else:
         return q.get()
+
+def graph(x, y, ylabel):
+    # Note that even in the OO-style, we use `.pyplot.figure` to create the Figure.
+    fig, ax = plt.subplots(figsize=(10, 5), layout='constrained')
+    ax.plot(x, y, label=ylabel)  # Plot some data on the Axes.
+    ax.set_xlabel('C/N')  # Add an x-label to the Axes.
+    ax.set_ylabel(ylabel)  # Add a y-label to the Axes.
+    ax.set_title(ylabel + ' vs C/N')  # Add a title to the Axes.
+
+    plt.legend()
+    plt.show()
 
 
 #Testing functions
@@ -198,6 +210,7 @@ def test_queue_thread():
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    #Create Problems
     N = 20
     vars = initializeVars(N)
     problems_dict = { } #key is c/n and value is an array of 50 problems
@@ -207,9 +220,33 @@ if __name__ == '__main__':
         for i in range(50): problems.append(create_3sat(c, vars))
         problems_dict[c/N] = problems
 
+    #Solve problems with walk_sat
     num_success = []
     median_flips = []
-    # for i in problems_dict:
-    #     problems = problems_dict[i]
-    #     for problem in problems:
+    for i in problems_dict:
+        success = 0
+        flips = []
+        problems = problems_dict[i]
+
+        for problem in problems:
+            num_flip = walk_sat_wrapper(problem, vars)
+            if num_flip != -1:
+                success += 1
+                flips.append(num_flip)
+
+        num_success.append(success)
+        if len(flips) == 0:
+            median_flips.append(0)
+        else:
+            median_flips.append(median(flips))
+
+    #graph result
+    x = list(problems_dict.keys())
+    graph(x, num_success, 'Num of Success')
+    graph(x, median_flips, 'Median Flips')
+
+    print(len(x))
+    print(len(num_success))
+    print(len(median_flips))
+
 
