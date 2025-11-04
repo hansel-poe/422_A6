@@ -71,11 +71,13 @@ def create_random_clause(vars):
 #Randomly create and assign N vars
 def initializeVars(N):
     vars = []
-    for n in range(N): vars.append(Variable(random_boolean()))
+    for n in range(N): vars.append(Variable(None))
     return vars
 
-def create_3sat(C,N):
-    vars = initializeVars(N)
+def shuffle_vars(vars):
+    for var in vars: var.set_value(random_boolean())
+
+def create_3sat(C, vars):
     clauses = []
     while (len(clauses) < C):
         clause = create_random_clause(vars)
@@ -97,11 +99,13 @@ def count_satisfied(clauses):
 
 #This function assumes vars are already assigned randomly.
 # This function will run indefinitely until a solution is found,
-# outside process should timeout appropriately when calling this function
+# and returns true if a solution is found
+# outside process should time out appropriately when calling this function
 def walk_sat(clauses, vars):
+    shuffle_vars(vars)
     while(1):
         if evaluate_3sat(clauses):
-            return vars
+            return True #normally we want to return vars, but here we only need to know if it's solved or not
         else:
             clause = pick_randomly(clauses)
             if random_boolean(): #If true, random flip
@@ -122,6 +126,8 @@ def walk_sat(clauses, vars):
                 var_to_flip = literal_to_flip.get_var()
                 var_to_flip.set_value(not var_to_flip.get_value()) #flip greedy variable
 
+
+#Testing functions
 def testClauseEquality():
     a = Variable(True)
     b = Variable(False)
@@ -146,10 +152,22 @@ def testVars():
     rand = pick_randomly(vars)
     print (rand,  vars)
 
-
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    # testClauseEquality()
-    testVars()
+    N = 20
+    vars = initializeVars(N)
+    problems_dict = { } #key is c/n and value is an array of 50 problems
+
+    for c in range(20, 201, 20):
+        problems = []
+        for i in range(50): problems.append(create_3sat(c, vars))
+        problems_dict[c/N] = problems
+
+
+
+
+
+
+
 
 
